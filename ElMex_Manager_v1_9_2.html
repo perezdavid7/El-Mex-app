@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ElMex Manager v1.9.2</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#151515;--muted:#666;--line:#d9dde5;--accent:#0b7cff;--danger:#c62828;--ok:#167b36;--warn:#a75d00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}header{position:sticky;top:0;z-index:10;background:#ff[...]
+
+.supplierCard{padding:0;overflow:hidden}.supplierTab{width:100%;border:0;background:transparent;padding:24px 26px;display:flex;align-items:center;justify-content:space-between;text-align:left;border-r[...]
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="qtyModal" class="modal"><div class="modalbox"><h2 id="qtyTitle">Pick quantity</h2><div id="qtyHint" class="hint"></div><div id="qtyGrid" class="pickgrid"></div><div class="row" style="margin-[...]
+<div id="jumpModal" class="modal"><div class="modalbox"><h2>Go to Section</h2><div id="jumpList"></div><div class="row"><button onclick="closeModal('jumpModal')">Close</button></div></div></div>
+<div id="actionModal" class="modal"><div class="modalbox"><h2 id="actionTitle">Actions</h2><div id="actionBody"></div><div class="row" style="margin-top:10px"><button onclick="closeModal('actionModal'[...]
+<script>
+const EMBEDDED_BACKUP={"version":"1.8.8","savedAt":"2026-07-27T14:44:53.003Z","items":[{"id":1,"name":"Eggs","area":"Basement","section":"Walk-in Cooler","supplier":"Performance Foodservice","unit":"C[...]
+const STARTER_SUPPLIERS=['Restaurant Depot',"Sam's Club",'Sysco','Performance Foodservice','Pepsi','Breakthru Beer','Johnson Brothers','Fresh Produce','Anderson Produce'];
+const STARTER_AREAS=['Basement','Main Floor','Front of House'];
+const STARTER_SECTION_MAP={Basement:['Walk-in Cooler','Walk-in Freezer','Beer','Bottled Drinks','Pepsi','Tortillas','Back Stock'],MainFloor:['Pantry']};
+const DEFAULT_SECTION_MAP={'Basement':['Walk-in Cooler','Walk-in Freezer','Beer','Bottled Drinks','Pepsi','Tortillas','Back Stock'],'Main Floor':['Pantry','Dry Storage','Chemicals','Kitchen'],'Front o[...]
+const STARTER_UNITS=['Case','Box','Bag','Gallon','Jug','Bottle','Can','Tub','Pail','Bucket','Roll','Sleeve','Dozen','Pound','Each','Tank','Container','Pack','Cup','Other'];
+const K={data:'elmex_v188_data',recovery:'elmex_v188_recovery',legacyItems:'elmex_v188_no_legacy_items',legacyState:'elmex_v188_no_legacy_state',legacySuppliers:'elmex_v188_no_legacy_suppliers',legacy[...]
+const DB_NAME='elmex_manager_persistent_db',DB_STORE='appdata',DB_KEY='current';
+let dbReady=null,lastDbSaveOk=true,lastDbSaveError='';
+function openPersistentDb(){if(dbReady)return dbReady;dbReady=new Promise((resolve,reject)=>{try{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.cont[...]
+async function dbRead(){try{const db=await openPersistentDb();return await new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readonly'),r=tx.objectStore(DB_STORE).get(DB_KEY);r.onsucces[...]
+async function dbWrite(data){try{const db=await openPersistentDb();await new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(data,DB_KEY);tx.oncom[...]
+
+let items=[],suppliers=[],supplierProfiles={},meta={},state={},hist=[];const app=document.getElementById('app');let longPressTimer=null;
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function js(s){return JSON.stringify(String(s??'')).replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmt(n){n=Number(n||0);if(Number.isInteger(n))return String(n);return String(n).replace('.25','¼').replace('.5','½').replace('.75','¾')}
+function nowLabel(ts){return ts?new Date(ts).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'}):'Not saved'}
+function defaultData(){const d=JSON.parse(JSON.stringify(EMBEDDED_BACKUP));d.version='1.8.8';d.savedAt=new Date().toISOString();d.state=d.state||{};d.state.screen='home';d.state.lastSaved=0;d.state.sa[...]
+function load(){let d=null;try{d=JSON.parse(localStorage.getItem(K.data)||'null')}catch(e){}if(!d){try{const li=JSON.parse(localStorage.getItem(K.legacyItems)||'null');if(li){d={items:li,suppliers:JSO[...]
+function snapshot(){return {version:'1.9.0',savedAt:new Date().toISOString(),items,suppliers,supplierProfiles,meta,state,hist}}
+function save(reason='Autosave'){try{state.lastSaved=Date.now();state.saveOk=true;state.saveError='';state.lastSaveReason=reason;const snap=snapshot(),data=JSON.stringify(snap),previous=localStorage.g[...]
+function manualSave(){const ok=save('Manual save');alert(ok?'Saved successfully at '+nowLabel(state.lastSaved):'Save failed: '+(state.saveError||'Unknown error'));render()}
+function recover(){try{const d=JSON.parse(localStorage.getItem(K.recovery)||'null');if(!d)return alert('No recovery snapshot is available.');if(!confirm('Restore the previous recovery snapshot? Curren[...]
+function ensure(){meta=meta||{};meta.areas=Array.isArray(meta.areas)?meta.areas:STARTER_AREAS.slice();meta.sectionMap=meta.sectionMap||JSON.parse(JSON.stringify(DEFAULT_SECTION_MAP));meta.units=Array.[...]
+function sections(){const out=[];meta.areas.forEach(a=>(meta.sectionMap[a]||[]).forEach(s=>{const its=items.filter(x=>x.area===a&&x.section===s).sort((a,b)=>(a.sortOrder??0)-(b.sortOrder??0)||String(a[...]
+function currentSection(){const list=sections();state.sectionIndex=Math.max(0,Math.min(state.sectionIndex,list.length-1));return list[state.sectionIndex]||{area:'Empty',section:'No items',items:[]}}
+function currentItem(){const sec=currentSection();state.itemIndex=Math.max(0,Math.min(state.itemIndex,Math.max(0,sec.items.length-1)));return sec.items[state.itemIndex]}
+function byId(id){return items.find(x=>String(x.id)===String(id))}
+function go(screen){state.screen=screen;save('Navigation');render()}
+function opt(list,sel,blank=''){return (blank?`<option value="">${esc(blank)}</option>`:'')+list.map(s=>`<option value="${esc(s)}" ${s===sel?'selected':''}>${esc(s)}</option>`).join('')}
+function saveBadgeText(){if(state.saveOk===false)return '● SAVE FAILED';if(state.dbWarning)return '● Saved • backup warning';return '● Saved '+nowLabel(state.lastSaved)}
+function saveBadgeClass(){return state.saveOk===false?'bad':(state.dbWarning?'warn':'')}
+function shell(t,sub,body,bottom=''){app.innerHTML=`<header><div class="headrow"><div><h1>${esc(t)}</h1>${sub?`<div class="sub">${sub}</div>`:''}</div><div class="saveBadge ${saveBadgeClass()}">${save[...]
+function renderHeaderOnly(){const el=document.querySelector('.saveBadge');if(el){el.className='saveBadge '+saveBadgeClass();el.textContent=saveBadgeText()}}
+function render(){try{ensure();const fn={inventory:renderInventory,orders:renderOrders,settings:renderSettings,sections:renderSections,suppliers:renderSuppliers,items:renderItems,layout:renderLayout,h[...]
+function hasActiveInventory(){return items.some(x=>x.touched||x.sectionDone||x.caseOnHand>0||x.unitOnHand>0||x.caseOrder>0||x.unitOrder>0)}
+function inventorySnapshot(source='manual'){const snapItems=items.map(x=>({id:x.id,name:x.name,area:x.area,section:x.section,supplier:x.supplier,inventoryUnit:x.inventoryUnit||x.unit||'Each',orderUnit[...]
+function archiveCurrentInventory(source='manual',quiet=false){if(!hasActiveInventory()){if(!quiet)alert('There is no inventory activity to save yet.');return false}hist.unshift(inventorySnapshot(sourc[...]
+function startNewInventory(){if(!confirm('Start a new inventory?'))return;if(hasActiveInventory()){if(confirm('Save current inventory to History before clearing?'))archiveCurrentInventory('new-invento[...]
+function renderHome(){const sec=currentSection(),it=currentItem(),ordered=items.filter(x=>(x.caseOrder||x.unitOrder)&&!x.purchased).length,active=hasActiveInventory();shell('ElMex Manager','v1.9.2 —[...]
+function qtyControls(x,p,label,unit,step){return `<div class="field"><div class="label">${label} ${esc(unit||'')}</div><div class="stepper"><button onclick="adj(${x.id},'${p}',-${step})">−</button><[...]
+function renderInventory(){const sec=currentSection(),x=currentItem();if(!x)return shell('Inventory','No items',`<button onclick="addItemDuringInventory()">Add Item</button>`);const idx=state.itemInde[...]
+function adj(id,p,n){const x=byId(id);x[p]=Math.max(0,Math.min(meta.qtyMax,Math.round((Number(x[p]||0)+n)*4)/4));x.touched=true;save('Quantity changed');render()}
+function openQty(id,p,step){const x=byId(id),max=meta.qtyMax;if(p==='caseOrder')step=Number(x.orderIncrement||1);state.qtyTarget={id,p,step};document.getElementById('qtyTitle').textContent='Pick quant[...]
+function setQty(v){const t=state.qtyTarget,x=byId(t.id);x[t.p]=v;x.touched=true;closeModal('qtyModal');save('Quantity picked');render()}
+function closeModal(id){document.getElementById(id).style.display='none'}
+function nextItem(){const sec=currentSection();if(state.itemIndex<sec.items.length-1)state.itemIndex++;else if(state.sectionIndex<sections().length-1){state.sectionIndex++;state.itemIndex=0}else state[...]
+function prevItem(){if(state.itemIndex>0)state.itemIndex--;else if(state.sectionIndex>0){state.sectionIndex--;state.itemIndex=currentSection().items.length-1}save('Inventory position');render()}
+function sectionDone(){currentSection().items.forEach(x=>{x.sectionDone=true;x.touched=true});if(state.sectionIndex<sections().length-1){state.sectionIndex++;state.itemIndex=0}else state.screen='order[...]
+function openJump(){document.getElementById('jumpList').innerHTML=sections().map((s,i)=>`<button class="bigbtn" onclick="jumpTo(${i})">${esc(s.area)} → ${esc(s.section)}<div class="small">${s.items.[...]
+function jumpTo(i){state.sectionIndex=i;state.itemIndex=0;closeModal('jumpModal');save('Jumped section');render()}
+function addItemDuringInventory(){const sec=currentSection();openEditItem(0,'inventory',sec.area,sec.section)}
+function activeItems(sup=null){let o=items.filter(x=>(x.caseOrder>0||x.unitOrder>0)&&!x.purchased&&x.orderStatus!=='skipped');let misc=(state.miscItems||[]).filter(x=>!x.purchased);let all=o.concat(mi[...]
+function orderText(sup=null){const o=activeItems(sup);if(!o.length)return 'No active items in shopping list.';let out=(sup?sup+' ORDER':'ELMEX MANAGER ORDER LIST')+'\n'+new Date().toLocaleString()+'\n[...]
+async function copyList(sup=null){const txt=orderText(sup);try{await navigator.clipboard.writeText(txt);alert('Shopping list copied.')}catch(e){prompt('Copy this shopping list:',txt)}}
+async function shareList(sup=null){const txt=orderText(sup);if(navigator.share){try{await navigator.share({title:'ElMex order',text:txt});return}catch(e){}}copyList(sup)}
+function toggleSupplier(s){state.expandedSupplier=state.expandedSupplier===s?'':s;save('Supplier tab');render()}
+function openMiscItemForm(prefillSupplier=''){document.getElementById('actionTitle').textContent='Add Miscellaneous Item';document.getElementById('actionBody').innerHTML=`<div class="label">Item name<[...]
+function saveMiscItem(){const name=miscName.value.trim(),quantity=Number(miscQty.value),unit=miscUnit.value,supplier=miscSupplier.value,note=miscNote.value.trim();if(!name)return alert('Item name is r[...]
+function markMiscPurchased(id){const before=(state.miscItems||[]).length;state.miscItems=(state.miscItems||[]).filter(x=>String(x.id)!==String(id));if(state.miscItems.length===before)return;save('Misc[...]
+function removeMiscItem(id){if(!confirm('Remove this miscellaneous item from the shopping list?'))return;state.miscItems=(state.miscItems||[]).filter(x=>String(x.id)!==String(id));save('Miscellaneous [...]
+function renderOrders(){const o=activeItems(),carried=o.filter(x=>x.orderStatus==='carryover').length;let body=`<div class="card"><div class="row"><button class="primary" onclick="shareList()">📤 Sh[...]
+function commitOrderStatus(x,status,reason){if(!x)return;x.orderStatus=status;x.purchased=status==='purchased';if(status==='carryover'&&!x.carryOverSince)x.carryOverSince=new Date().toISOString();if(s[...]
+function markPurchased(id){commitOrderStatus(byId(id),'purchased','Purchased immediately')}
+function markCarryOver(id){commitOrderStatus(byId(id),'carryover','Carry over saved immediately')}
+function skipOrderItem(id){commitOrderStatus(byId(id),'skipped','Skipped item saved immediately')}
+function togglePurchased(id){const x=byId(id);commitOrderStatus(x,x&&x.purchased?'open':'purchased','Purchased status saved immediately')}
+function saveHistory(){archiveCurrentInventory('shopping-list');render()}
+function renderSettings(){shell('Settings','Manage inventory organization and data',`<button class="bigbtn" onclick="go('sections')">🗂️ Manage Sections</button><button class="bigbtn" onclick="go([...]
+let sectionDrag={area:null,section:null,row:null};
+function renderSections(){let body=`<div class="card"><div class="row"><button class="primary" onclick="addArea()">➕ Add Area</button><button onclick="addSectionPrompt()">➕ Add Section</button></d[...]
+function beginSectionDrag(ev,a,s){if(ev.button!==undefined&&ev.button!==0)return;const row=ev.currentTarget.closest('.sectionRow');if(!row)return;sectionDrag={area:a,section:s,row};row.classList.add('[...]
+function moveSectionDrag(ev){const row=sectionDrag.row;if(!row)return;ev.preventDefault();const el=document.elementFromPoint(ev.clientX,ev.clientY),target=el&&el.closest('.sectionRow');if(!target||tar[...]
+function endSectionDrag(ev){const row=sectionDrag.row;if(!row)return;const list=row.parentElement,area=sectionDrag.area;meta.sectionMap[area]=[...list.querySelectorAll('.sectionRow[data-section]')].ma[...]
+function startLongPress(fn){cancelLongPress();longPressTimer=setTimeout(fn,650)}function cancelLongPress(){clearTimeout(longPressTimer)}
+function sectionActions(a,s){document.getElementById('actionTitle').textContent='Manage '+s;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="renameSection(${js(a)},${[...]
+function areaActions(a){document.getElementById('actionTitle').textContent='Manage '+a;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="renameArea(${js(a)})">Rename A[...]
+function addArea(){const v=prompt('New area name');if(v&&v.trim()&&!meta.areas.includes(v.trim())){meta.areas.push(v.trim());meta.sectionMap[v.trim()]=[];save('Area added');render()}}
+function addSectionPrompt(){const area=prompt('Enter the area for the new section:\n'+meta.areas.join(', '));if(!area||!meta.areas.includes(area.trim()))return alert('Area not found.');const s=prompt([...]
+function renameArea(a){const v=prompt('Rename area:',a);if(!v||!v.trim()||v.trim()===a)return;const n=v.trim();items.forEach(x=>{if(x.area===a)x.area=n});meta.areas=meta.areas.map(x=>x===a?n:x);meta.s[...]
+function renameSection(a,s){const v=prompt('Rename section:',s);if(!v||!v.trim()||v.trim()===s)return;const n=v.trim();items.forEach(x=>{if(x.area===a&&x.section===s)x.section=n});meta.sectionMap[a]=m[...]
+function moveSection(a,s){const dest=prompt('Move this section to which area?\n'+meta.areas.filter(x=>x!==a).join(', '));if(!dest||!meta.areas.includes(dest.trim()))return alert('Area not found.');con[...]
+function deleteSection(a,s){const affected=items.filter(x=>x.area===a&&x.section===s);if(affected.length){const dest=prompt(`${affected.length} items are in this section. Enter another section in ${a}[...]
+function deleteArea(a){const affected=items.filter(x=>x.area===a);if(affected.length)return alert('Move or delete all sections and items from this area first.');if(!confirm('Delete empty area '+a+'?')[...]
+function renderSuppliers(){let body=`<div class="card"><button class="primary" onclick="editSupplier('')">➕ Add Supplier</button><div class="hint">Press and hold a supplier for actions, or use Manag[...]
+function supplierActions(s){document.getElementById('actionTitle').textContent='Manage '+s;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="editSupplier(${js(s)})">Ed[...]
+function editSupplier(old){const p=old?supplierProfiles[old]||{}:{};closeModal('actionModal');shell(old?'Edit Supplier':'Add Supplier',old||'',`<div class="card"><div class="label">Supplier name</div>[...]
+function saveSupplier(old){const n=supName.value.trim();if(!n)return alert('Supplier name is required.');if(!old&&suppliers.includes(n))return alert('That supplier already exists.');const p={contact:s[...]
+function deleteSupplier(s){const affected=items.filter(x=>x.supplier===s);if(affected.length){const dest=prompt(`${affected.length} items use this supplier. Enter another supplier to reassign them to:[...]
+function filteredItems(){const f=state.itemFilters;return items.filter(x=>(!f.area||x.area===f.area)&&(!f.section||x.section===f.section)&&(!f.supplier||x.supplier===f.supplier)&&(!f.q||(x.name+' '+x.[...]
+function renderItems(){const f=state.itemFilters,list=filteredItems();const sectionsForArea=f.area?(meta.sectionMap[f.area]||[]):[...new Set(items.map(x=>x.section))].sort();let body=`<div class="tool[...]
+function toggleSelectionMode(){state.selectionMode=!state.selectionMode;if(!state.selectionMode)state.selectedItems=[];save('Selection mode');render()}
+function itemTap(id){if(state.selectionMode){toggleSelect(id)}else openEditItem(id,'items')}
+function longSelect(id){state.selectionMode=true;toggleSelect(id)}
+function toggleSelect(id){const i=state.selectedItems.indexOf(id);if(i>=0)state.selectedItems.splice(i,1);else state.selectedItems.push(id);save('Items selected');render()}
+function selectAllFiltered(){state.selectedItems=[...new Set([...state.selectedItems,...filteredItems().map(x=>x.id)])];save('Items selected');render()}
+function itemActions(id){const x=byId(id);document.getElementById('actionTitle').textContent=x.name;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="closeModal('actio[...]
+function bulkMoveArea(){const a=prompt('Move selected items to which area?\n'+meta.areas.join(', '));if(!a||!meta.areas.includes(a.trim()))return alert('Area not found.');const sec=(meta.sectionMap[a.[...]
+function bulkMoveSection(){const a=prompt('Enter destination area:\n'+meta.areas.join(', '));if(!a||!meta.areas.includes(a.trim()))return alert('Area not found.');const s=prompt('Enter destination sec[...]
+function bulkSupplier(){const s=prompt('Assign selected items to which supplier?\n'+suppliers.join(', '));if(!s||!suppliers.includes(s.trim()))return alert('Supplier not found.');items.filter(x=>state[...]
+function bulkDelete(){if(!confirm('Delete '+state.selectedItems.length+' selected items?'))return;items=items.filter(x=>!state.selectedItems.includes(x.id));state.selectedItems=[];save('Bulk delete');[...]
+function deleteOneItem(id){if(!confirm('Delete this item?'))return;items=items.filter(x=>x.id!==id);closeModal('actionModal');save('Item deleted');render()}
+function openEditItem(id,returnScreen='items',presetArea='',presetSection=''){const x=id?byId(id):{area:presetArea||meta.areas[0],section:presetSection||((meta.sectionMap[presetArea||meta.areas[0]]||[[...]
+function refreshSectionSelect(){fSection.innerHTML=opt(meta.sectionMap[fArea.value]||[],'')}
+function saveItem(id){const f={name:fName.value.trim(),area:fArea.value,section:fSection.value,supplier:fSupplier.value,unit:fUnit.value,inventoryUnit:fUnit.value,orderUnit:fUnit.value,unitsPerOrderUn[...]
+
+let layoutDrag={id:null,row:null,pointerId:null};
+function renderLayout(){const area=state.layoutArea||meta.areas[0]||'',secs=meta.sectionMap[area]||[],section=secs.includes(state.layoutSection)?state.layoutSection:(secs[0]||'');state.layoutArea=area[...]
+function beginLayoutDrag(ev,id){if(ev.button!==undefined&&ev.button!==0)return;const row=ev.currentTarget.closest('.orderRow');if(!row)return;layoutDrag={id,row,pointerId:ev.pointerId};row.classList.a[...]
+function moveLayoutDrag(ev){const row=layoutDrag.row;if(!row)return;ev.preventDefault();const el=document.elementFromPoint(ev.clientX,ev.clientY),target=el&&el.closest('.orderRow');if(!target||target=[...]
+function endLayoutDrag(ev){const row=layoutDrag.row;if(!row)return;const parent=row.parentElement,ids=[...parent.querySelectorAll('.orderRow[data-id]')].map(el=>Number(el.dataset.id));ids.forEach((id,[...]
+function addItemAtPosition(area,section,index){normalizeSectionOrder(area,section);state.pendingInsert={area,section,index:Number(index)};openEditItem(0,'layout',area,section)}
+function normalizeSectionOrder(area,section){items.filter(x=>x.area===area&&x.section===section).sort((a,b)=>(a.sortOrder??0)-(b.sortOrder??0)||String(a.name).localeCompare(String(b.name))).forEach((x[...]
+function moveItemOrder(id,dir){const x=byId(id);normalizeSectionOrder(x.area,x.section);const list=items.filter(y=>y.area===x.area&&y.section===x.section).sort((a,b)=>a.sortOrder-b.sortOrder),i=list.f[...]
+function historySummary(h){const all=h.items||[];const orders=all.filter(x=>Number(x.caseOrder||0)>0||Number(x.unitOrder||0)>0).length;const counted=all.filter(x=>x.touched||Number(x.caseOnHand||0)>0|[...]
+function renderHistory(){shell('History','Previous weekly inventories and orders',`<div class="card">${hist.length?hist.map((h,i)=>`<div class="listLine"><b>${new Date(h.date).toLocaleString()}</b><di[...]
+function historyText(h){const all=h.items||[];let out='ELMEX INVENTORY HISTORY\n'+new Date(h.date).toLocaleString()+'\n';const groups=[...new Set(all.map(x=>(x.area||'')+'|||'+(x.section||'')))];group[...]
+function viewHistory(i){const h=hist[i],txt=historyText(h);shell('Saved Inventory',new Date(h.date).toLocaleString(),`<div class="card"><div class="meta">${esc(historySummary(h))}</div></div><textarea[...]
+async function copyHistory(){const txt=document.getElementById('historyText').value;try{await navigator.clipboard.writeText(txt);alert('History copied.')}catch(e){prompt('Copy this history:',txt)}}
+function renderSaveCenter(){let storage='Unknown';try{storage=Math.round((localStorage.getItem(K.data)||'').length/1024)+' KB'}catch(e){}shell('Save & Recovery','Verify your work before a full invento[...]
+function runSaveTest(){const key='elmex_v17_test',v='test-'+Date.now();try{localStorage.setItem(key,v);const ok=localStorage.getItem(key)===v;localStorage.removeItem(key);document.getElementById('test[...]
+function exportData(){save('Before backup export');const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blo[...]
+function importData(ev){const file=ev.target.files&&ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.items))throw Error('B[...]
+function clearOrders(){if(confirm('Clear all active order quantities and purchased marks?')){items.forEach(x=>{x.caseOrder=0;x.unitOrder=0;x.purchased=false;x.orderStatus='open';x.carryOverSince=null;[...]
+function resetApp(){if(!confirm('Reset all saved app data? Export a backup first.'))return;if(!confirm('This cannot be undone unless you have a backup. Continue?'))return;localStorage.removeItem(K.dat[...]
+async function initializeApp(){const localData=load();let dbData=await dbRead();try{const localTime=Date.parse(localData&&localData.savedAt||0)||Number(state.lastSaved||0),dbTime=Date.parse(dbData&&db[...]
+window.addEventListener('pagehide',()=>save('Page closing - immediate'));window.addEventListener('freeze',()=>save('App frozen - immediate'));document.addEventListener('visibilitychange',()=>{if(docum[...]
+initializeApp();
+</script>
+
+<!-- v1.9.2 Add Supplier UX patch -->
+<script>
+window.ELMEX_NEXT_BUILD_NOTES={
+feature:"Add New Supplier from Add Item screen",
+workflow:[
+"Tap Add Item",
+"Tap Supplier",
+"Tap + Add New Supplier",
+"Enter supplier name",
+"Save auto-selects supplier and returns to Add Item"
+]
+};
+</script>
+
+</body>
+</html>
