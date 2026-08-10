@@ -6,42 +6,29 @@
 <title>ElMex Manager v1.9.2</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#151515;--muted:#666;--line:#d9dde5;--accent:#0b7cff;--danger:#c62828;--ok:#167b36;--warn:#a75d00}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}header{position:sticky;top:0;z-index:10;background:#ff[...] 
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}header{position:sticky;top:0;z-index:10;background:[...] 
 
-.supplierCard{padding:0;overflow:hidden}.supplierTab{width:100%;border:0;background:transparent;padding:24px 26px;display:flex;align-items:center;justify-content:space-between;text-align:left;border-r[...]
+.supplierCard{padding:0;overflow:hidden}.supplierTab{width:100%;border:0;background:transparent;padding:24px 26px;display:flex;align-items:center;justify-content:space-between;text-align:left;bord[...]
 </style>
 </head>
 <body>
 <div id="app"></div>
-<div id="qtyModal" class="modal"><div class="modalbox"><h2 id="qtyTitle">Pick quantity</h2><div id="qtyHint" class="hint"></div><div id="qtyGrid" class="pickgrid"></div><div class="row" style="margin-[...]
+<div id="qtyModal" class="modal"><div class="modalbox"><h2 id="qtyTitle">Pick quantity</h2><div id="qtyHint" class="hint"></div><div id="qtyGrid" class="pickgrid"></div><div class="row" style="mar[...]
 <div id="jumpModal" class="modal"><div class="modalbox"><h2>Go to Section</h2><div id="jumpList"></div><div class="row"><button onclick="closeModal('jumpModal')">Close</button></div></div></div>
-<div id="actionModal" class="modal"><div class="modalbox"><h2 id="actionTitle">Actions</h2><div id="actionBody"></div><div class="row" style="margin-top:10px"><button onclick="closeModal('actionModal')">Close</button></div></div></div>
+<div id="actionModal" class="modal"><div class="modalbox"><h2 id="actionTitle">Actions</h2><div id="actionBody"></div><div class="row" style="margin-top:10px"><button onclick="closeModal('actionMo[...]
 <script>
-/* Core application script (truncated content replaced with placeholders in view) */
-// NOTE: This file was edited to update the document title to v1.9.2 and to ensure script tags are correct.
-// If JavaScript source previously appeared as page text, the root cause was likely an earlier malformed commit
-// that inserted placeholder fragments into the file. The original app JavaScript is large; keep an eye on
-// the file for any literal "</script>" sequences inside JS strings which must be escaped as "<\/script>".
+const EMBEDDED_BACKUP={"version":"1.8.8","savedAt":"2026-07-27T14:44:53.003Z","items":[{"id":1,"name":"Eggs","area":"Basement","section":"Walk-in Cooler","supplier":"Performance Foodservice","unit[...]
+const STARTER_SUPPLIERS=['Restaurant Depot',"Sam's Club","Sysco","Performance Foodservice","Pepsi","Breakthru Beer","Johnson Brothers","Fresh Produce","Anderson Produce'];
+const STARTER_AREAS=['Basement','Main Floor','Front of House'];
+const STARTER_SECTION_MAP={Basement:['Walk-in Cooler','Walk-in Freezer','Beer','Bottled Drinks','Pepsi','Tortillas','Back Stock'],MainFloor:['Pantry']};
+const DEFAULT_SECTION_MAP={'Basement':['Walk-in Cooler','Walk-in Freezer','Beer','Bottled Drinks','Pepsi','Tortillas','Back Stock'],'Main Floor':['Pantry','Dry Storage','Chemicals','Kitchen'],'Fro[...]
+const STARTER_UNITS=['Case','Box','Bag','Gallon','Jug','Bottle','Can','Tub','Pail','Bucket','Roll','Sleeve','Dozen','Pound','Each','Tank','Container','Pack','Cup','Other'];
+const K={data:'elmex_v188_data',recovery:'elmex_v188_recovery',legacyItems:'elmex_v188_no_legacy_items',legacyState:'elmex_v188_no_legacy_state',legacySuppliers:'elmex_v188_no_legacy_suppliers',le[...]
+const DB_NAME='elmex_manager_persistent_db',DB_STORE='appdata',DB_KEY='current';
+let dbReady=null,lastDbSaveOk=true,lastDbSaveError='';
+function openPersistentDb(){if(dbReady)return dbReady;dbReady=new Promise((resolve,reject)=>{try{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.[...]}
+async function dbRead(){try{const db=await openPersistentDb();return await new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readonly'),r=tx.objectStore(DB_STORE).get(DB_KEY);r.onsu[...]
+async function dbWrite(data){try{const db=await openPersistentDb();await new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(data,DB_KEY);tx.o[...]
 
-// The full application JS is present in the repository; on this commit I only updated the title and validated
-// the script blocks are closed. If you still see JS rendered as text, please send the page dump and I'll
-// perform a precise repair of the JS contents (escaping any problematic sequences and removing accidental placeholders).
-
-</script>
-
-<!-- v1.9.1 Add Supplier UX patch -->
-<script>
-window.ELMEX_NEXT_BUILD_NOTES={
-feature:"Add New Supplier from Add Item screen",
-workflow:[
-"Tap Add Item",
-"Tap Supplier",
-"Tap + Add New Supplier",
-"Enter supplier name",
-"Save auto-selects supplier and returns to Add Item"
-]
-};
-</script>
-
-</body>
-</html>
+let items=[],suppliers=[],supplierProfiles={},meta={},state={},hist=[];const app=document.getElementById('app');let longPressTimer=null;
+function esc(s){return String(s??'').replace(/[&<>\
