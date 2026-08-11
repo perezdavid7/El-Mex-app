@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>ElMex Manager v1.9.1</title>
+<title>ElMex Manager v1.9.2</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#151515;--muted:#666;--line:#d9dde5;--accent:#0b7cff;--danger:#c62828;--ok:#167b36;--warn:#a75d00}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}header{position:sticky;top:0;z-index:10;background:#ff}[...]
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}header{position:sticky;top:0;z-index:10;background:#ff[...]
 
 .supplierCard{padding:0;overflow:hidden}.supplierTab{width:100%;border:0;background:transparent;padding:24px 26px;display:flex;align-items:center;justify-content:space-between;text-align:left;border-r[...]
 </style>
@@ -37,7 +37,7 @@ function fmt(n){n=Number(n||0);if(Number.isInteger(n))return String(n);return St
 function nowLabel(ts){return ts?new Date(ts).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'}):'Not saved'}
 function defaultData(){const d=JSON.parse(JSON.stringify(EMBEDDED_BACKUP));d.version='1.8.8';d.savedAt=new Date().toISOString();d.state=d.state||{};d.state.screen='home';d.state.lastSaved=0;d.state.sa[...]
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(K.data)||'null')}catch(e){}if(!d){try{const li=JSON.parse(localStorage.getItem(K.legacyItems)||'null');if(li){d={items:li,suppliers:JSO[...]
-function snapshot(){return {version:'1.9.0',savedAt:new Date().toISOString(),items,suppliers,supplierProfiles,meta,state,hist}}
+function snapshot(){return {version:'1.9.2',savedAt:new Date().toISOString(),items,suppliers,supplierProfiles,meta,state,hist}}
 function save(reason='Autosave'){try{state.lastSaved=Date.now();state.saveOk=true;state.saveError='';state.lastSaveReason=reason;const snap=snapshot(),data=JSON.stringify(snap),previous=localStora[...]
 function manualSave(){const ok=save('Manual save');alert(ok?'Saved successfully at '+nowLabel(state.lastSaved):'Save failed: '+(state.saveError||'Unknown error'));render()}
 function recover(){try{const d=JSON.parse(localStorage.getItem(K.recovery)||'null');if(!d)return alert('No recovery snapshot is available.');if(!confirm('Restore the previous recovery snapshot? Curren[...]
@@ -52,19 +52,19 @@ function saveBadgeText(){if(state.saveOk===false)return '● SAVE FAILED';if(sta
 function saveBadgeClass(){return state.saveOk===false?'bad':(state.dbWarning?'warn':'')}
 function shell(t,sub,body,bottom=''){app.innerHTML=`<header><div class="headrow"><div><h1>${esc(t)}</h1>${sub?`<div class="sub">${sub}</div>`:''}</div><div class="saveBadge ${saveBadgeClass()}">${save[...]
 function renderHeaderOnly(){const el=document.querySelector('.saveBadge');if(el){el.className='saveBadge '+saveBadgeClass();el.textContent=saveBadgeText()}}
-function render(){try{ensure();const fn={inventory:renderInventory,orders:renderOrders,settings:renderSettings,sections:renderSections,suppliers:renderSuppliers,items:renderItems,layout:renderLayo[...]
+function render(){try{ensure();const fn={inventory:renderInventory,orders:renderOrders,settings:renderSettings,sections:renderSections,suppliers:renderSuppliers,items:renderItems,layout:renderLayout,h[...]
 function hasActiveInventory(){return items.some(x=>x.touched||x.sectionDone||x.caseOnHand>0||x.unitOnHand>0||x.caseOrder>0||x.unitOrder>0)}
 function inventorySnapshot(source='manual'){const snapItems=items.map(x=>({id:x.id,name:x.name,area:x.area,section:x.section,supplier:x.supplier,inventoryUnit:x.inventoryUnit||x.unit||'Each',orderUnit[...]
 function archiveCurrentInventory(source='manual',quiet=false){if(!hasActiveInventory()){if(!quiet)alert('There is no inventory activity to save yet.');return false}hist.unshift(inventorySnapshot(sourc[...]
 function startNewInventory(){if(!confirm('Start a new inventory?'))return;if(hasActiveInventory()){if(confirm('Save current inventory to History before clearing?'))archiveCurrentInventory('new-invento[...]
-function renderHome(){const sec=currentSection(),it=currentItem(),ordered=items.filter(x=>(x.caseOrder||x.unitOrder)&&!x.purchased).length,active=hasActiveInventory();shell('ElMex Manager','v1.8.9 —[...]
+function renderHome(){const sec=currentSection(),it=currentItem(),ordered=items.filter(x=>(x.caseOrder||x.unitOrder)&&!x.purchased).length,active=hasActiveInventory();shell('ElMex Manager','v1.9.2 —[...]
 function qtyControls(x,p,label,unit,step){return `<div class="field"><div class="label">${label} ${esc(unit||'')}</div><div class="stepper"><button onclick="adj(${x.id},'${p}',-${step})">−</button><[...]
 function renderInventory(){const sec=currentSection(),x=currentItem();if(!x)return shell('Inventory','No items',`<button onclick="addItemDuringInventory()">Add Item</button>`);const idx=state.itemInde[...]
 function adj(id,p,n){const x=byId(id);x[p]=Math.max(0,Math.min(meta.qtyMax,Math.round((Number(x[p]||0)+n)*4)/4));x.touched=true;save('Quantity changed');render()}
 function openQty(id,p,step){const x=byId(id),max=meta.qtyMax;if(p==='caseOrder')step=Number(x.orderIncrement||1);state.qtyTarget={id,p,step};document.getElementById('qtyTitle').textContent='Pick quant[...]
 function setQty(v){const t=state.qtyTarget,x=byId(t.id);x[t.p]=v;x.touched=true;closeModal('qtyModal');save('Quantity picked');render()}
 function closeModal(id){document.getElementById(id).style.display='none'}
-function nextItem(){const sec=currentSection();if(state.itemIndex<sec.items.length-1)state.itemIndex++;else if(state.sectionIndex<(sections().length-1)){state.sectionIndex++;state.itemIndex=0}else state[...]
+function nextItem(){const sec=currentSection();if(state.itemIndex<sec.items.length-1)state.itemIndex++;else if(state.sectionIndex<(sections().length-1)){state.sectionIndex++;state.itemIndex=0}else sta[...]
 function prevItem(){if(state.itemIndex>0)state.itemIndex--;else if(state.sectionIndex>0){state.sectionIndex--;state.itemIndex=currentSection().items.length-1}save('Inventory position');render()}
 function sectionDone(){currentSection().items.forEach(x=>{x.sectionDone=true;x.touched=true});if(state.sectionIndex<sections().length-1){state.sectionIndex++;state.itemIndex=0}else state.screen='order[...]
 function openJump(){document.getElementById('jumpList').innerHTML=sections().map((s,i)=>`<button class="bigbtn" onclick="jumpTo(${i})">${esc(s.area)} → ${esc(s.section)}<div class="small">${s.it[...]
@@ -77,50 +77,50 @@ async function shareList(sup=null){const txt=orderText(sup);if(navigator.share){
 function toggleSupplier(s){state.expandedSupplier=state.expandedSupplier===s?'':s;save('Supplier tab');render()}
 function openMiscItemForm(prefillSupplier=''){document.getElementById('actionTitle').textContent='Add Miscellaneous Item';document.getElementById('actionBody').innerHTML=`<div class="label">Item name<[...]
 function saveMiscItem(){const name=miscName.value.trim(),quantity=Number(miscQty.value),unit=miscUnit.value,supplier=miscSupplier.value,note=miscNote.value.trim();if(!name)return alert('Item name is r[...]
-function markMiscPurchased(id){const before=(state.miscItems||[]).length;state.miscItems=(state.miscItems||[]).filter(x=>String(x.id)!==String(id));if(state.miscItems.length===before)return;save('[...]
+function markMiscPurchased(id){const before=(state.miscItems||[]).length;state.miscItems=(state.miscItems||[]).filter(x=>String(x.id)!==String(id));if(state.miscItems.length===before)return;save('Misc[...]
 function removeMiscItem(id){if(!confirm('Remove this miscellaneous item from the shopping list?'))return;state.miscItems=(state.miscItems||[]).filter(x=>String(x.id)!==String(id));save('Miscellaneous [...]
-function renderOrders(){const o=activeItems(),carried=o.filter(x=>x.orderStatus==='carryover').length;let body=`<div class="card"><div class="row"><button class="primary" onclick="shareList()">📤 Share shopping list</button><button onclick="copyList()">📋 Copy</button><button onclick="saveHistory()">💾 Save to History</button><button onclick="clearOrders()">✖ Clear</button></div><div class="hint">${o.length} active items</div></div>`;shell('Orders','Shopping and orders',body)}
+function renderOrders(){const o=activeItems(),carried=o.filter(x=>x.orderStatus==='carryover').length;let body=`<div class="card"><div class="row"><button class="primary" onclick="shareList()">📤 Sh[...]
 function commitOrderStatus(x,status,reason){if(!x)return;x.orderStatus=status;x.purchased=status==='purchased';if(status==='carryover'&&!x.carryOverSince)x.carryOverSince=new Date().toISOString();if(s[...]
 function markPurchased(id){commitOrderStatus(byId(id),'purchased','Purchased immediately')}
 function markCarryOver(id){commitOrderStatus(byId(id),'carryover','Carry over saved immediately')}
 function skipOrderItem(id){commitOrderStatus(byId(id),'skipped','Skipped item saved immediately')}
 function togglePurchased(id){const x=byId(id);commitOrderStatus(x,x&&x.purchased?'open':'purchased','Purchased status saved immediately')}
 function saveHistory(){archiveCurrentInventory('shopping-list');render()}
-function renderSettings(){shell('Settings','Manage inventory organization and data',`<button class="bigbtn" onclick="go('sections')">🗂️ Manage Sections</button><button class="bigbtn" onclick="go('suppliers')">🏬 Manage Suppliers</button><button class="bigbtn" onclick="go('items')">🧾 Manage Items</button><div class="card"><div class="row"><button onclick="exportData()">Export Backup</button><button onclick="document.getElementById('importFile').click()">Import Backup</button><input id="importFile" type="file" accept="application/json" onchange="importData(event)" style="display:none"></div></div>`)}
+function renderSettings(){shell('Settings','Manage inventory organization and data',`<button class="bigbtn" onclick="go('sections')">🗂️ Manage Sections</button><button class="bigbtn" onclick="go([...]
 let sectionDrag={area:null,section:null,row:null};
-function renderSections(){let body=`<div class="card"><div class="row"><button class="primary" onclick="addArea()">➕ Add Area</button><button onclick="addSectionPrompt()">➕ Add Section</button></div></div>`;shell('Sections','Manage areas and sections',body)}
-function beginSectionDrag(ev,a,s){if(ev.button!==undefined&&ev.button!==0)return;const row=ev.currentTarget.closest('.sectionRow');if(!row)return;sectionDrag={area:a,section:s,row};row.classList.a[...]
+function renderSections(){let body=`<div class="card"><div class="row"><button class="primary" onclick="addArea()">➕ Add Area</button><button onclick="addSectionPrompt()">➕ Add Section</button></d[...]
+function beginSectionDrag(ev,a,s){if(ev.button!==undefined&&ev.button!==0)return;const row=ev.currentTarget.closest('.sectionRow');if(!row)return;sectionDrag={area:a,section:s,row};row.classList.a[...[...]
 function moveSectionDrag(ev){const row=sectionDrag.row;if(!row)return;ev.preventDefault();const el=document.elementFromPoint(ev.clientX,ev.clientY),target=el&&el.closest('.sectionRow');if(!target||tar[...]
-function endSectionDrag(ev){const row=sectionDrag.row;if(!row)return;const list=row.parentElement,area=sectionDrag.area;meta.sectionMap[area]=[...list.querySelectorAll('.sectionRow[data-section]')].[...]
+function endSectionDrag(ev){const row=sectionDrag.row;if(!row)return;const list=row.parentElement,area=sectionDrag.area;meta.sectionMap[area]=[...list.querySelectorAll('.sectionRow[data-section]')].m[...]
 function startLongPress(fn){cancelLongPress();longPressTimer=setTimeout(fn,650)}function cancelLongPress(){clearTimeout(longPressTimer)}
-function sectionActions(a,s){document.getElementById('actionTitle').textContent='Manage '+s;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="renameSection(${js(a)},${js(s)})">Rename</button><button onclick="moveSection(${js(a)},${js(s)})">Move</button><button onclick="deleteSection(${js(a)},${js(s)})">Delete</button></div>`;openModal('actionModal')}
-function areaActions(a){document.getElementById('actionTitle').textContent='Manage '+a;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="renameArea(${js(a)})">Rename Area</button><button onclick="deleteArea(${js(a)})">Delete Area</button></div>`;openModal('actionModal')}
+function sectionActions(a,s){document.getElementById('actionTitle').textContent='Manage '+s;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="renameSection(${js(a)},${[...]
+function areaActions(a){document.getElementById('actionTitle').textContent='Manage '+a;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="renameArea(${js(a)})">Rename A[...]
 function addArea(){const v=prompt('New area name');if(v&&v.trim()&&!meta.areas.includes(v.trim())){meta.areas.push(v.trim());meta.sectionMap[v.trim()]=[];save('Area added');render()}}
-function addSectionPrompt(){const area=prompt('Enter the area for the new section:\n'+meta.areas.join(', '));if(!area||!meta.areas.includes(area.trim()))return alert('Area not found.');const s=pro[...]
+function addSectionPrompt(){const area=prompt('Enter the area for the new section:\n'+meta.areas.join(', '));if(!area||!meta.areas.includes(area.trim()))return alert('Area not found.');const s=pro[...[...]
 function renameArea(a){const v=prompt('Rename area:',a);if(!v||!v.trim()||v.trim()===a)return;const n=v.trim();items.forEach(x=>{if(x.area===a)x.area=n});meta.areas=meta.areas.map(x=>x===a?n:x);m[...]
 function renameSection(a,s){const v=prompt('Rename section:',s);if(!v||!v.trim()||v.trim()===s)return;const n=v.trim();items.forEach(x=>{if(x.area===a&&x.section===s)x.section=n});meta.sectionMap[a]=m[...]
 function moveSection(a,s){const dest=prompt('Move this section to which area?\n'+meta.areas.filter(x=>x!==a).join(', '));if(!dest||!meta.areas.includes(dest.trim()))return alert('Area not found.');con[...]
-function deleteSection(a,s){const affected=items.filter(x=>x.area===a&&x.section===s);if(affected.length){const dest=prompt(`${affected.length} items are in this section. Enter another section in ${a} to move them to:`);if(!dest||!meta.sectionMap[a].includes(dest.trim()))return alert('Section not found.');items.forEach(x=>{if(x.area===a&&x.section===s)x.section=dest});}meta.sectionMap[a]=(meta.sectionMap[a]||[]).filter(x=>x!==s);save('Section deleted');render()}
-function deleteArea(a){const affected=items.filter(x=>x.area===a);if(affected.length)return alert('Move or delete all sections and items from this area first.');if(!confirm('Delete empty area '+a+'?'))return;meta.areas=meta.areas.filter(x=>x!==a);delete meta.sectionMap[a];save('Area deleted');render()}
-function renderSuppliers(){let body=`<div class="card"><button class="primary" onclick="editSupplier('')">➕ Add Supplier</button><div class="hint">Press and hold a supplier for actions, or use Manage Suppliers to edit</div>`;body+=`<div class="row">${suppliers.map(s=>`<button class="supplierTab" onclick="toggleSupplier(${js(s)})">${esc(s)}<div class="small">${(items.filter(x=>x.supplier===s).length)} items</div></button>`).join('')}</div></div>`;shell('Suppliers','Manage suppliers and contacts',body)}
-function supplierActions(s){document.getElementById('actionTitle').textContent='Manage '+s;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="editSupplier(${js(s)})">Edit Supplier</button><button onclick="deleteSupplier(${js(s)})">Delete Supplier</button></div>`;openModal('actionModal')}
-function editSupplier(old){const p=old?supplierProfiles[old]||{}:{};closeModal('actionModal');shell(old?'Edit Supplier':'Add Supplier',old||'',`<div class="card"><div class="label">Supplier name</div><input id="supName" value="${esc(old)}"><div class="label">Contact</div><input id="supContact" value="${esc(p.contact||'')}"><div class="row"><button class="primary" onclick="saveSupplier(${js(old)})">Save</button><button onclick="closeModal('actionModal')">Cancel</button></div></div>`)}
-function saveSupplier(old){const n=supName.value.trim();if(!n)return alert('Supplier name is required.');if(!old&&suppliers.includes(n))return alert('That supplier already exists.');const p={contact:supContact.value.trim()};if(!old){suppliers.push(n);supplierProfiles[n]=p}else{if(old!==n){suppliers=suppliers.map(x=>x===old?n:x);items.forEach(it=>{if(it.supplier===old)it.supplier=n});supplierProfiles[n]=p;delete supplierProfiles[old]}else supplierProfiles[old]=p}save('Supplier saved');render()}
-function deleteSupplier(s){const affected=items.filter(x=>x.supplier===s);if(affected.length){const dest=prompt(`${affected.length} items use this supplier. Enter another supplier to reassign them to:`);if(!dest||!suppliers.includes(dest.trim()))return alert('Supplier not found.');items.forEach(x=>{if(x.supplier===s)x.supplier=dest});}suppliers=suppliers.filter(x=>x!==s);delete supplierProfiles[s];save('Supplier deleted');render()}
+function deleteSection(a,s){const affected=items.filter(x=>x.area===a&&x.section===s);if(affected.length){const dest=prompt(`${affected.length} items are in this section. Enter another section in ${a}[...]
+function deleteArea(a){const affected=items.filter(x=>x.area===a);if(affected.length)return alert('Move or delete all sections and items from this area first.');if(!confirm('Delete empty area '+a+'?')[...]
+function renderSuppliers(){let body=`<div class="card"><button class="primary" onclick="editSupplier('')">➕ Add Supplier</button><div class="hint">Press and hold a supplier for actions, or use Manag[...]
+function supplierActions(s){document.getElementById('actionTitle').textContent='Manage '+s;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="editSupplier(${js(s)})">Ed[...]
+function editSupplier(old){const p=old?supplierProfiles[old]||{}:{};closeModal('actionModal');shell(old?'Edit Supplier':'Add Supplier',old||'',`<div class="card"><div class="label">Supplier name</div>[...]
+function saveSupplier(old){const n=supName.value.trim();if(!n)return alert('Supplier name is required.');if(!old&&suppliers.includes(n))return alert('That supplier already exists.');const p={contact:s[...]
+function deleteSupplier(s){const affected=items.filter(x=>x.supplier===s);if(affected.length){const dest=prompt(`${affected.length} items use this supplier. Enter another supplier to reassign them to:[...]
 function filteredItems(){const f=state.itemFilters;return items.filter(x=>(!f.area||x.area===f.area)&&(!f.section||x.section===f.section)&&(!f.supplier||x.supplier===f.supplier)&&(!f.q||(x.name+' '+x.[...]
-function renderItems(){const f=state.itemFilters,list=filteredItems();const sectionsForArea=f.area?(meta.sectionMap[f.area]||[]):[...new Set(items.map(x=>x.section))].sort();let body=`<div class="toolrow"><div><label>Area</label><select id="fArea" onchange="refreshSectionSelect()">${opt(meta.areas,f.area||'')}</select></div><div><label>Section</label><select id="fSection">${opt(sectionsForArea,f.section||'','All sections')}</select></div><div><label>Supplier</label><select id="fSupplier">${opt([''].concat(suppliers),f.supplier||'','All suppliers')}</select></div><div><label>Search</label><input id="fQ" value="${esc(f.q||'')}"></div><div class="row"><button class="primary" onclick="toggleSelectionMode()">Toggle selection</button><button onclick="selectAllFiltered()">Select all</button></div></div><div class="card">${list.length?list.map(x=>`<div class="listLine"><b>${esc(x.name)}</b><div class="small">${esc(x.area)} → ${esc(x.section)} • ${esc(x.supplier||'')} • ${esc(x.unit||'')}</div></div>`).join(''):'No items found'}</div>`;shell('Items','Manage items and filters',body)}
+function renderItems(){const f=state.itemFilters,list=filteredItems();const sectionsForArea=f.area?(meta.sectionMap[f.area]||[]):[...new Set(items.map(x=>x.section))].sort();let body=`<div class="tool[...]
 function toggleSelectionMode(){state.selectionMode=!state.selectionMode;if(!state.selectionMode)state.selectedItems=[];save('Selection mode');render()}
 function itemTap(id){if(state.selectionMode){toggleSelect(id)}else openEditItem(id,'items')}
 function longSelect(id){state.selectionMode=true;toggleSelect(id)}
 function toggleSelect(id){const i=state.selectedItems.indexOf(id);if(i>=0)state.selectedItems.splice(i,1);else state.selectedItems.push(id);save('Items selected');render()}
 function selectAllFiltered(){state.selectedItems=[...new Set([...state.selectedItems,...filteredItems().map(x=>x.id)])];save('Items selected');render()}
-function itemActions(id){const x=byId(id);document.getElementById('actionTitle').textContent=x.name;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="closeModal('actionModal')">Cancel</button><button class="primary" onclick="deleteOneItem(${js(id)})">Delete</button></div>`;openModal('actionModal')}
-function bulkMoveArea(){const a=prompt('Move selected items to which area?\n'+meta.areas.join(', '));if(!a||!meta.areas.includes(a.trim()))return alert('Area not found.');const sec=(meta.sectionMap[a]||[])[0]||'';items.filter(x=>state.selectedItems.includes(x.id)).forEach(x=>{x.area=a;x.section=sec});state.selectedItems=[];save('Bulk moved');render()}
-function bulkMoveSection(){const a=prompt('Enter destination area:\n'+meta.areas.join(', '));if(!a||!meta.areas.includes(a.trim()))return alert('Area not found.');const s=prompt('Enter destination section:\n'+(meta.sectionMap[a]||[]).join(', '));if(!s||!meta.sectionMap[a].includes(s.trim()))return alert('Section not found.');items.filter(x=>state.selectedItems.includes(x.id)).forEach(x=>{x.area=a;x.section=s});state.selectedItems=[];save('Bulk moved');render()}
-function bulkSupplier(){const s=prompt('Assign selected items to which supplier?\n'+suppliers.join(', '));if(!s||!suppliers.includes(s.trim()))return alert('Supplier not found.');items.filter(x=>state.selectedItems.includes(x.id)).forEach(x=>{x.supplier=s});state.selectedItems=[];save('Items updated');render()}
-function bulkDelete(){if(!confirm('Delete '+state.selectedItems.length+' selected items?'))return;items=items.filter(x=>!state.selectedItems.includes(x.id));state.selectedItems=[];save('Bulk delete');render()}
+function itemActions(id){const x=byId(id);document.getElementById('actionTitle').textContent=x.name;document.getElementById('actionBody').innerHTML=`<div class="row"><button onclick="closeModal('actio[...]
+function bulkMoveArea(){const a=prompt('Move selected items to which area?\n'+meta.areas.join(', '));if(!a||!meta.areas.includes(a.trim()))return alert('Area not found.');const sec=(meta.sectionMap[a][...]
+function bulkMoveSection(){const a=prompt('Enter destination area:\n'+meta.areas.join(', '));if(!a||!meta.areas.includes(a.trim()))return alert('Area not found.');const s=prompt('Enter destination sec[...]
+function bulkSupplier(){const s=prompt('Assign selected items to which supplier?\n'+suppliers.join(', '));if(!s||!suppliers.includes(s.trim()))return alert('Supplier not found.');items.filter(x=>state[...]
+function bulkDelete(){if(!confirm('Delete '+state.selectedItems.length+' selected items?'))return;items=items.filter(x=>!state.selectedItems.includes(x.id));state.selectedItems=[];save('Bulk delete');[...]
 function deleteOneItem(id){if(!confirm('Delete this item?'))return;items=items.filter(x=>x.id!==id);closeModal('actionModal');save('Item deleted');render()}
-function openEditItem(id,returnScreen='items',presetArea='',presetSection=''){const x=id?byId(id):{area:presetArea||meta.areas[0],section:presetSection||((meta.sectionMap[presetArea||meta.areas[0]]||[])[0]||''),name:'',supplier:'',unit:meta.units[0]||'Each',orderUnit:meta.units[0]||'Each',inventoryUnit:meta.units[0]||'Each',caseOnHand:0,unitOnHand:0,caseOrder:0,unitOrder:0};closeModal('actionModal');const pending=state.pendingInsert;const ret=returnScreen||'items';let body=`<div class="card"><div class="label">Item name</div><input id="fName" value="${esc(x.name)}"><div class="label">Area</div><select id="fArea">${opt(meta.areas,x.area||'')}</select><div class="label">Section</div><select id="fSection">${opt(meta.sectionMap[fArea.value]||[] ,x.section||'')}</select><div class="label">Supplier</div><select id="fSupplier">${opt([''].concat(suppliers),x.supplier||'')}</select><div class="label">Unit</div><select id="fUnit">${opt(meta.units,x.unit||'')}</select><div class="row"><button class="primary" onclick="saveItem(${js(id)})">Save</button><button onclick="closeModal('actionModal')">Cancel</button></div></div>`;shell(id?'Edit Item':'Add Item',id?x.name:'',body)}
+function openEditItem(id,returnScreen='items',presetArea='',presetSection=''){const x=id?byId(id):{area:presetArea||meta.areas[0],section:presetSection||((meta.sectionMap[presetArea||meta.areas[0]]||[[...]
 function refreshSectionSelect(){fSection.innerHTML=opt(meta.sectionMap[fArea.value]||[],'')}
 function saveItem(id){const f={name:fName.value.trim(),area:fArea.value,section:fSection.value,supplier:fSupplier.value,unit:fUnit.value,inventoryUnit:fUnit.value,orderUnit:fUnit.value,unitsPerOrderUn[...]
 
@@ -135,13 +135,13 @@ function moveItemOrder(id,dir){const x=byId(id);normalizeSectionOrder(x.area,x.s
 function historySummary(h){const all=h.items||[];const orders=all.filter(x=>Number(x.caseOrder||0)>0||Number(x.unitOrder||0)>0).length;const counted=all.filter(x=>x.touched||Number(x.caseOnHand||0)>0|[...]
 function renderHistory(){shell('History','Previous weekly inventories and orders',`<div class="card">${hist.length?hist.map((h,i)=>`<div class="listLine"><b>${new Date(h.date).toLocaleString()}</b><di[...]
 function historyText(h){const all=h.items||[];let out='ELMEX INVENTORY HISTORY\n'+new Date(h.date).toLocaleString()+'\n';const groups=[...new Set(all.map(x=>(x.area||'')+'|||'+(x.section||'')))];group[...]
-function viewHistory(i){const h=hist[i],txt=historyText(h);shell('Saved Inventory',new Date(h.date).toLocaleString(),`<div class="card"><div class="meta">${esc(historySummary(h))}</div></div><textarea id="historyText">${esc(txt)}</textarea><div class="row"><button onclick="copyHistory()">Copy</button><button onclick="closeModal('actionModal')">Close</button></div>`) }
+function viewHistory(i){const h=hist[i],txt=historyText(h);shell('Saved Inventory',new Date(h.date).toLocaleString(),`<div class="card"><div class="meta">${esc(historySummary(h))}</div></div><textarea[...]
 async function copyHistory(){const txt=document.getElementById('historyText').value;try{await navigator.clipboard.writeText(txt);alert('History copied.')}catch(e){prompt('Copy this history:',txt)}}
-function renderSaveCenter(){let storage='Unknown';try{storage=Math.round((localStorage.getItem(K.data)||'').length/1024)+' KB'}catch(e){}shell('Save & Recovery','Verify your work before a full inventory',`<div class="card"><div class="meta">Local storage usage: ${esc(storage)}</div><div class="row"><button onclick="runSaveTest()">Run save test</button><button onclick="manualSave()">Manual Save</button></div></div>`)}
+function renderSaveCenter(){let storage='Unknown';try{storage=Math.round((localStorage.getItem(K.data)||'').length/1024)+' KB'}catch(e){}shell('Save & Recovery','Verify your work before a full invento[...]
 function runSaveTest(){const key='elmex_v17_test',v='test-'+Date.now();try{localStorage.setItem(key,v);const ok=localStorage.getItem(key)===v;localStorage.removeItem(key);document.getElementById('test[...]
 function exportData(){save('Before backup export');const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blo[...]
 function importData(ev){const file=ev.target.files&&ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.items))throw Error('B[...]
-function clearOrders(){if(confirm('Clear all active order quantities and purchased marks?')){items.forEach(x=>{x.caseOrder=0;x.unitOrder=0;x.purchased=false;x.orderStatus='open';x.carryOverSince=[...]
+function clearOrders(){if(confirm('Clear all active order quantities and purchased marks?')){items.forEach(x=>{x.caseOrder=0;x.unitOrder=0;x.purchased=false;x.orderStatus='open';x.carryOverSince=null;[...]
 function resetApp(){if(!confirm('Reset all saved app data? Export a backup first.'))return;if(!confirm('This cannot be undone unless you have a backup. Continue?'))return;localStorage.removeItem(K.dat[...]
 async function initializeApp(){const localData=load();let dbData=await dbRead();try{const localTime=Date.parse(localData&&localData.savedAt||0)||Number(state.lastSaved||0),dbTime=Date.parse(dbData&&db[...]
 window.addEventListener('pagehide',()=>save('Page closing - immediate'));window.addEventListener('freeze',()=>save('App frozen - immediate'));document.addEventListener('visibilitychange',()=>{if(docum[...]
@@ -204,14 +204,14 @@ if(typeof renderOrders === 'function'){
         const derived = computeSupplierDerivedStatus(s);
         const current = explicit || derived;
 
-        centerHtml += `<div class="supplierCard"><div class="supplierTab"><div><b>${esc(s)}</b><div class="small">${its.length} items</div></div><div><label>Supplier status</label> <select onchange="setSupplierOrderStatus(${js(s)}, this.value)"><option value=\"Not ordered\" ${current==='Not ordered'?'selected':''}>Not ordered</option><option value=\"Ordered\" ${current==='Ordered'?'selected':''}>Ordered</option><option value=\"Partially purchased\" ${current==='Partially purchased'?'selected':''}>Partially purchased</option><option value=\"Completed\" ${current==='Completed'?'selected':''}>Completed</option></select></div></div>`;
+        centerHtml += `<div class="supplierCard"><div class="supplierTab"><div><b>${esc(s)}</b><div class="small">${its.length} items</div></div><div><label>Supplier status</label> <select onchange="setSupplierOrderStatus('${js(s)}',this.value)"><option value="Not ordered" ${current==='Not ordered'?'selected':''}>Not ordered</option><option value="Sent" ${current==='Sent'?'selected':''}>Sent</option><option value="Partially purchased" ${current==='Partially purchased'?'selected':''}>Partially purchased</option><option value="Completed" ${current==='Completed'?'selected':''}>Completed</option></select></div></div>`;
 
         centerHtml += '<div class="card"><div>';
         centerHtml += its.map(x=>{
           const qty = (x.caseOrder>0?x.caseOrder:(x.unitOrder>0?x.unitOrder:0));
           const unit = x.orderUnit||x.unit||x.inventoryUnit||'';
           const status = x.orderStatus||'open';
-          return `<div class=\"listLine\"><b>${esc(x.name)}</b><div class=\"small\">Qty: ${esc(qty)} ${esc(unit)} • Item status: ${esc(status)}</div></div>`;
+          return `<div class="listLine"><b>${esc(x.name)}</b><div class="small">Qty: ${esc(qty)} ${esc(unit)} • Item status: ${esc(status)}</div></div>`;
         }).join('');
         centerHtml += '</div></div></div>';
       });
@@ -231,16 +231,16 @@ if(typeof renderOrders === 'function'){
 }
 </script>
 
-<!-- v1.9.1 Add Supplier UX patch -->
+<!-- v1.9.2 Add Supplier UX patch -->
 <script>
 window.ELMEX_NEXT_BUILD_NOTES={
-feature:"Add New Supplier from Add Item screen",
-workflow:[
-"Tap Add Item",
-"Tap Supplier",
-"Tap + Add New Supplier",
-"Enter supplier name",
-"Save auto-selects supplier and returns to Add Item"
+feature:"Supplier Ordering Center - Track orders by supplier with status dropdown",
+changes:[
+"Added Supplier Ordering Center section to Orders view",
+"Supplier status dropdown (Not ordered, Sent, Partially purchased, Completed)",
+"Supplier order statuses persist across page reloads",
+"Derived status from individual item purchase states",
+"Fixed truncated onchange handler for supplier status dropdown"
 ]
 };
 </script>
